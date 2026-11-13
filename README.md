@@ -6,7 +6,10 @@
 **Contact:** `03175941654`  
 **Department:** School of Electrical Engineering & Computer Science (SEECS), NUST  
 **Degree:** BS Software Engineering  
-**Platform Tagline:** *Connecting Donors. Supporting Lives.*
+**Platform Tagline:** *Connecting Donors. Supporting Lives.*  
+
+> 🌐 **Live Website Link:** [https://big-dawgs2.github.io/BloodLink/](https://big-dawgs2.github.io/BloodLink/)  
+> 📁 **GitHub Repository:** [https://github.com/Big-DawGs2/BloodLink](https://github.com/Big-DawGs2/BloodLink)
 
 ---
 
