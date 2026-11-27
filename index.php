@@ -1,8 +1,17 @@
+<?php
+require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/security.php';
+startSecureSession();
+getDb();
+$csrfToken = getCsrfToken();
+$currentUser = getCurrentUser();
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="<?= e($csrfToken) ?>">
   <meta name="description" content="BloodLink — Blood Donation Campaign Scheduler. Connecting Donors. Supporting Lives.">
   <title>BloodLink — Blood Donation Campaign Scheduler</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
@@ -39,6 +48,13 @@
           <li><a href="#campaigns" class="nav-link" data-section="campaigns">Campaigns</a></li>
           <li><a href="#createCampaignSection" class="nav-link" data-section="createCampaignSection">Create Campaign</a></li>
           <li><a href="#registerSection" class="nav-link" data-section="registerSection">Register as Donor</a></li>
+          <li class="nav-auth-item">
+            <button type="button" id="authOpenBtn" class="btn-nav-auth" aria-label="Organizer Sign In">Sign In</button>
+            <div id="authUserPill" class="auth-user-pill hidden">
+              <span id="authUserName" class="auth-user-name"></span>
+              <button type="button" id="authLogoutBtn" class="btn-nav-logout" title="Sign Out">Sign Out</button>
+            </div>
+          </li>
         </ul>
       </nav>
     </div>
@@ -156,9 +172,16 @@
       <div class="container text-center">
         <h2 class="section-title">Upcoming Campaigns</h2>
         <p class="section-subtitle">Don't miss these upcoming blood donation opportunities near you.</p>
+        <div id="upcomingLoading" class="loading-state hidden" role="status" aria-live="polite">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Loading upcoming campaigns from database…</span>
+        </div>
+        <div id="upcomingError" class="error-state hidden" role="alert">
+          <p>Unable to load upcoming campaigns right now.</p>
+          <button type="button" class="btn btn-outline btn-sm" id="retryUpcomingBtn">Retry</button>
+        </div>
         <div id="upcomingContainer" class="campaign-cards-grid">
           <!-- Campaign preview cards will be injected here by JS -->
-          <p class="placeholder-text">Loading upcoming campaigns…</p>
         </div>
         <div class="section-action">
           <a href="#campaigns" class="btn btn-outline" data-section="campaigns">View All Campaigns</a>
@@ -169,7 +192,14 @@
     <!-- ===== CAMPAIGN LISTING SECTION ===== -->
     <section id="campaigns" class="section campaigns-section hidden">
       <div class="container">
-        <h2>All Campaigns</h2>
+        <div class="campaigns-header-row">
+          <h2>All Campaigns</h2>
+          <div class="view-pref-group" role="group" aria-label="Card view density preference">
+            <span class="view-pref-label">View:</span>
+            <button type="button" class="btn-pref active" id="prefComfortable" data-density="comfortable">Comfortable</button>
+            <button type="button" class="btn-pref" id="prefCompact" data-density="compact">Compact</button>
+          </div>
+        </div>
 
         <!-- Search & Filters -->
         <aside class="filters-bar" aria-label="Campaign filters">
@@ -218,10 +248,19 @@
           </div>
         </aside>
 
+        <!-- Loading & Error States -->
+        <div id="campaignsLoading" class="loading-state hidden" role="status" aria-live="polite">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Fetching campaigns from server…</span>
+        </div>
+        <div id="campaignsError" class="error-state hidden" role="alert">
+          <p id="campaignsErrorText">Failed to load campaigns.</p>
+          <button type="button" class="btn btn-outline btn-sm" id="retryCampaignsBtn">Retry</button>
+        </div>
+
         <!-- Campaign Grid -->
         <div id="campaignGrid" class="campaign-cards-grid">
           <!-- Campaign cards will be injected here by JS -->
-          <p class="placeholder-text">Loading campaigns…</p>
         </div>
       </div>
     </section>
@@ -284,6 +323,13 @@
         <!-- The Clean Form Card -->
         <div class="create-form-container">
           <form id="campaignForm" class="modern-organizer-form" novalidate>
+            <div id="createAuthNotice" class="auth-required-banner hidden" role="status">
+              <div>
+                <strong>Organizer Sign-In Required:</strong> Please sign in to create or manage your campaigns.
+              </div>
+              <button type="button" class="btn btn-primary btn-sm" id="createSignInPromptBtn">Sign In as Organizer</button>
+            </div>
+
             <div class="form-section-heading">
               <h3>Campaign Specifications</h3>
               <p>Provide accurate event details for donor registration. Fields with <span class="required">*</span> are required.</p>
@@ -571,6 +617,58 @@
     </div>
   </div>
 
+  <!-- ========== ORGANIZER AUTH MODAL ========== -->
+  <div id="authModal" class="modal-overlay hidden" aria-hidden="true" role="dialog" aria-labelledby="authModalTitle">
+    <div class="modal-content modal-auth">
+      <button type="button" class="modal-close" id="closeAuthModal" aria-label="Close sign in dialog">&times;</button>
+      <h2 id="authModalTitle">Organizer Portal Sign In</h2>
+      <p class="auth-modal-subtitle">Sign in to create campaigns and manage drives you own.</p>
+
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="auth-tab active" id="tabSignIn" data-auth-tab="login" role="tab" aria-selected="true">Sign In</button>
+        <button type="button" class="auth-tab" id="tabRegister" data-auth-tab="register" role="tab" aria-selected="false">Create Account</button>
+      </div>
+
+      <form id="authLoginForm" novalidate>
+        <div class="form-group">
+          <label for="authLoginEmail">Organizer Email <span class="required" aria-hidden="true">*</span></label>
+          <input type="email" id="authLoginEmail" required placeholder="e.g. organizer@bloodlink.pk">
+        </div>
+        <div class="form-group">
+          <label for="authLoginPassword">Password <span class="required" aria-hidden="true">*</span></label>
+          <input type="password" id="authLoginPassword" required placeholder="Enter password">
+        </div>
+        <div class="demo-credentials-box">
+          <small><strong>Demo Organizer:</strong> organizer@bloodlink.pk / Organizer123!</small>
+          <button type="button" id="fillDemoOrganizerBtn" class="btn-link-sm">Fill Demo</button>
+        </div>
+        <div id="authLoginMsg" class="form-message" role="alert" aria-live="polite"></div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="authLoginSubmitBtn">Sign In</button>
+        </div>
+      </form>
+
+      <form id="authRegisterForm" class="hidden" novalidate>
+        <div class="form-group">
+          <label for="authRegName">Full Name / Organization <span class="required" aria-hidden="true">*</span></label>
+          <input type="text" id="authRegName" required minlength="2" placeholder="e.g. Dr. Sara Ahmed">
+        </div>
+        <div class="form-group">
+          <label for="authRegEmail">Email Address <span class="required" aria-hidden="true">*</span></label>
+          <input type="email" id="authRegEmail" required placeholder="e.g. sara@hospital.pk">
+        </div>
+        <div class="form-group">
+          <label for="authRegPassword">Password (min 6 chars) <span class="required" aria-hidden="true">*</span></label>
+          <input type="password" id="authRegPassword" required minlength="6" placeholder="Create a strong password">
+        </div>
+        <div id="authRegMsg" class="form-message" role="alert" aria-live="polite"></div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="authRegSubmitBtn">Create Organizer Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ========== TOAST / NOTIFICATION CONTAINER ========== -->
   <div id="toastContainer" class="toast-container" aria-live="polite" aria-relevant="additions"></div>
 
@@ -602,6 +700,11 @@
       </div>
     </div>
   </footer>
+
+  <!-- ========== INITIAL SESSION BOOTSTRAP ========== -->
+  <script>
+    window.__BLOODLINK_USER__ = <?= json_encode($currentUser, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+  </script>
 
   <!-- ========== SCRIPTS ========== -->
   <script src="js/data.js"></script>

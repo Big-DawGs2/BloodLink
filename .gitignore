@@ -19,3 +19,8 @@ yarn-error.log*
 
 # Node / dependencies (none used in Assignment 1 vanilla build)
 node_modules/
+
+# Assignment 2 SQLite runtime database (auto-generated from db/schema.sql + db/seed.php)
+db/bloodlink.sqlite
+db/*.sqlite
+db/*.sqlite-journal

@@ -1,5 +1,5 @@
 # BloodLink — Blood Donation Campaign Scheduler
-**CS344 Web Engineering — Assignment 1 (Fall 2026)**  
+**CS344 Web Engineering — Assignment 2: PHP 8.5, PDO & Fetch Application (Fall 2026)**  
 **Project #21 (Official Course Project Bank)**  
 **Student:** Huzaifa Sohail  
 **Registration / Email:** `hsohail.bese24seecs@seecs.edu.pk`  
@@ -8,56 +8,64 @@
 **Degree:** BS Software Engineering  
 **Platform Tagline:** *Connecting Donors. Supporting Lives.*  
 
-> 🌐 **Live Website Link:** [https://big-dawgs2.github.io/BloodLink/](https://big-dawgs2.github.io/BloodLink/)  
-> 📁 **GitHub Repository:** [https://github.com/Big-DawGs2/BloodLink](https://github.com/Big-DawGs2/BloodLink)
+> 📁 **GitHub Repository:** [https://github.com/Big-DawGs2/BloodLink](https://github.com/Big-DawGs2/BloodLink)  
+> 🏷️ **Assignment 1 Stage Preserved:** Branch [`assignment-1`](https://github.com/Big-DawGs2/BloodLink/tree/assignment-1) & Tag [`v1.0-assignment1`](https://github.com/Big-DawGs2/BloodLink/releases/tag/v1.0-assignment1) (Live static prototype: [https://big-dawgs2.github.io/BloodLink/](https://big-dawgs2.github.io/BloodLink/))
 
 ---
 
 ## 1. Welcome & Project Overview
 
-Welcome to **BloodLink**! This is my submission for **Assignment 1** in **CS344 Web Engineering**. 
+Welcome to **BloodLink (Assignment 2)**! This stage extends my Assignment 1 client-side prototype into a **full-featured PHP 8.5 + PDO (SQLite) + JSON/Fetch** web application while keeping the exact same user problem, core records, and visual identity.
 
-The goal of this project is to solve a very real and critical issue across Pakistan: **bridging the coordination gap between blood donation organizers and voluntary donors**. Every single day, emergency rooms, cancer wards, and pediatric thalassemia centers urgently need blood units. BloodLink provides a modern, centralized platform where healthcare organizers can schedule verified blood drives and donors can discover campaigns and reserve slots in advance without friction.
-
-### Why This Project Matters
-- **Pure Client-Side Foundation:** Built strictly using **semantic HTML5**, **modern modular CSS3**, and **vanilla JavaScript** (Lectures W01L01–W05L11). No React, no Bootstrap, no jQuery, and no backend shortcuts.
-- **Architectural Continuity (Assignments 1 → 2 → 3):** This application was engineered from day one to serve as the stable data and interface foundation for Assignment 2 (PHP 8.5, PDO, SQLite/MySQL, Fetch API) and Assignment 3 (Full-Stack MERN: React, Express, MongoDB).
-- **Production-Caliber Aesthetics:** Features an authoritative medical-journal typography pairing (**Playfair Display** + **Plus Jakarta Sans / Inter**), custom responsive cards, dedicated organizer/donor workflows, and thoughtful UX micro-interactions.
+### What Was Added in Assignment 2
+- **Database Persistence (`db/schema.sql`, `db/seed.php`, `includes/db.php`):** Relational SQLite schema (`users`, `campaigns`, `donors`, `registrations`) accessed exclusively via **PHP PDO with prepared statements**. Auto-initializes and seeds on first run!
+- **REST/JSON API Endpoints (`api/auth.php`, `api/campaigns.php`, `api/registrations.php`):** Full **Create, Read, Update, Delete (CRUD)** workflow + donor registration + organizer session authentication.
+- **Asynchronous `fetch()` + `async/await` Frontend (`js/data.js`, `js/campaigns.js`, `js/donors.js`, `js/app.js`):** Explicit **loading**, **success**, **empty**, and **error** states with zero unnecessary page reloads.
+- **Server-Side Security (`includes/security.php`):**
+  - Authoritative **server-side validation** for all campaign and donor inputs.
+  - **Output encoding** via `htmlspecialchars(..., ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')` (`e()`) in PHP and `escapeHtml()` in JS.
+  - **Session ownership checks** (`requireAuth()` + `requireOwnership()`) so organizers can only edit or delete campaigns they own.
+  - **CSRF protection** (`random_bytes(32)` + `hash_equals()`) enforced on every mutating request via `X-CSRF-Token`.
+  - **Non-sensitive `localStorage` preference:** Stores only the user's card density preference (`comfortable` vs. `compact`).
 
 > **Academic Note & Medical Disclaimer:**  
 > *BloodLink is an educational simulation developed for academic demonstration in CS344 Web Engineering. It demonstrates web systems engineering principles and does not claim to provide certified clinical screening or medical donor fitness diagnosis.*
 
 ---
 
-## 2. Quick Start & Setup Guide
+## 2. Quick Start & Setup Guide (Assignment 2 — PHP 8.5 + SQLite)
 
-BloodLink is completely self-contained. It requires **no package installations, no `npm install`, and no database servers** to run.
+### Prerequisites
+- **PHP 8.5** (or PHP 8.2+) with the `pdo_sqlite` and `sqlite3` extensions enabled (included in standard PHP / XAMPP / Laragon).
 
-### Option 1: Direct Browser Launch (Simplest & Quickest)
-1. Unzip or navigate into the project directory:
-   ```
-   c:\Users\Lenovo\Downloads\Assignment 1 WEB\BloodLink\
-   ```
-2. Simply double-click **`index.html`** or right-click $\rightarrow$ **Open with** $\rightarrow$ **Google Chrome**, **Microsoft Edge**, or **Mozilla Firefox**.
-3. The complete application will run immediately with all 8 pre-seeded campaigns and interactive features enabled.
-
-### Option 2: VS Code Live Server (Recommended for Grading & Demo)
-1. Open Visual Studio Code.
-2. Go to **File $\rightarrow$ Open Folder...** and select `BloodLink`.
-3. If you have the popular **Live Server** extension installed:
-   - Right-click `index.html` in the file tree and click **"Open with Live Server"**.
-4. Your browser will automatically open at `http://127.0.0.1:5500/index.html` with hot-reloading active.
-
-### Option 3: Python Built-In HTTP Server (Terminal)
-If you prefer running a lightweight local HTTP server:
+### Step 1: Clone or Navigate to the Project
 ```bash
-# Navigate to the BloodLink folder
-cd "c:\Users\Lenovo\Downloads\Assignment 1 WEB\BloodLink"
-
-# Launch Python 3 local server
-python -m http.server 8000
+git clone https://github.com/Big-DawGs2/BloodLink.git
+cd BloodLink
 ```
-Then visit [`http://localhost:8000`](http://localhost:8000) in your browser.
+
+### Step 2: (Optional) Seed or Reset the SQLite Database
+The application **automatically creates and seeds `db/bloodlink.sqlite`** on the first page load. To manually initialize or reset the database from the terminal:
+```bash
+php db/seed.php --reset
+```
+
+### Step 3: Start the PHP Built-In Development Server
+```bash
+php -S 127.0.0.1:8000
+```
+Then open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your browser (or place the `BloodLink` folder inside `C:\xampp\htdocs\` and visit `http://localhost/BloodLink/`).
+
+### Demo Organizer Credentials (for Session Ownership & CRUD)
+- **Primary Organizer:** `organizer@bloodlink.pk` / `Organizer123!` *(owns `CAM-001` through `CAM-006`, plus any new campaigns you create)*
+- **Partner Organizer:** `partner@bloodlink.pk` / `Partner123!` *(owns `CAM-007` and `CAM-008` — useful for testing `403 Forbidden` ownership protection!)*
+
+### Step 4: Run Automated API & Security Verification Tests
+With the PHP server running on `http://127.0.0.1:8000`, run:
+```bash
+php tests/test_api.php
+```
+This tests unauthenticated rejection (`401`), organizer login (`200`), invalid/missing server-side input (`422`), invalid CSRF token (`403`), successful campaign create (`201`) & update (`200`), unauthorized cross-user edit (`403`), scheduling conflict (`409`), and delete (`200`).
 
 ---
 
